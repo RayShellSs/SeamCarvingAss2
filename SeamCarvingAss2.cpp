@@ -35,7 +35,7 @@ HWND hButtonLoad, hButtonResize, hButtonSave;
 HWND hRadioDP, hRadioGreedy;
 
 // Labels
-HWND hWidth, hHeight, hFilePath;
+HWND hWidth, hHeight, hFilePath, hIntro;
 
 // Input Boxes
 HWND hEditVertSeams, hEditHorizSeams;
@@ -133,6 +133,10 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
     {
         return FALSE;
     }
+
+    // Introduction
+    hIntro = CreateWindow(L"STATIC", L"Hello! Let's Reduce some Seams!", WS_CHILD | WS_VISIBLE,
+        10, 10, 480, 20, hWnd, NULL, hInstance, NULL);
 
     // Width
     hWidth = CreateWindow(L"STATIC", L"Width (px):", WS_CHILD | WS_VISIBLE,
@@ -596,6 +600,88 @@ Mat insertHorizontalSeam(const Mat& img, const std::vector<int>& seam)
     return output;
 }
 
+////////////////////////////////////////////// GREEDY ALGORITHM IMPLEMENTATION ////////////////////////////////////////////
+std::vector<int> findVerticalSeamGreedy(const Mat& energyMap)
+{
+    int rows = energyMap.rows, cols = energyMap.cols;
+    std::vector<int> seam(rows);
+
+    // Start from the minimum energy pixel in the first row
+    seam[0] = std::min_element(energyMap.row(0).begin<uchar>(), energyMap.row(0).end<uchar>()) - energyMap.row(0).begin<uchar>();
+
+    // Select the minimum energy pixel in each subsequent row
+    for (int i = 1; i < rows; i++) {
+        int prevCol = seam[i - 1];
+        int left = max(0, prevCol - 1);
+        int right = min(cols - 1, prevCol + 1);
+
+        // Find the column with minimum energy in the range [left, right]
+        seam[i] = left + std::min_element(energyMap.ptr<uchar>(i) + left, energyMap.ptr<uchar>(i) + right + 1) - (energyMap.ptr<uchar>(i) + left);
+    }
+
+    return seam;
+}
+
+Mat removeVerticalSeamGreedy(const Mat& image, const std::vector<int>& seam)
+{
+    int rows = image.rows, cols = image.cols;
+    Mat output(rows, cols - 1, image.type());
+
+    for (int i = 0; i < rows; i++) {
+        int col = seam[i];
+        // Copy pixels to the left of the seam
+        image.row(i).colRange(0, col).copyTo(output.row(i).colRange(0, col));
+        // Copy pixels to the right of the seam
+        image.row(i).colRange(col + 1, cols).copyTo(output.row(i).colRange(col, cols - 1));
+    }
+
+    return output;
+}
+
+// Transpose Image for Horizontal Seam Support
+Mat transposeImage(const Mat& image)
+{
+    Mat transposed;
+    transpose(image, transposed);
+    return transposed;
+}
+
+std::vector<int> findHorizontalSeamGreedy(const Mat& energyMap)
+{
+    // Transpose the energy map
+    Mat transposedEnergyMap = transposeImage(energyMap);
+
+    // Use the vertical seam greedy algorithm
+    std::vector<int> verticalSeam = findVerticalSeamGreedy(transposedEnergyMap);
+
+    // Return the seam, now interpreted as a horizontal seam
+    return verticalSeam;
+}
+
+Mat removeHorizontalSeamGreedy(const Mat& image, const std::vector<int>& seam)
+{
+    // Transpose the image
+    Mat transposedImage = transposeImage(image);
+
+    // Remove the vertical seam on the transposed image
+    Mat resultTransposed = removeVerticalSeam(transposedImage, seam);
+
+    // Transpose back to get the horizontally resized image
+    return transposeImage(resultTransposed);
+}
+
+Mat visualizeHorizontalSeam(const Mat& image, const std::vector<int>& seam)
+{
+    Mat visualization = image.clone();
+
+    for (int i = 0; i < seam.size(); i++) {
+        int row = seam[i];  // Seam indicates rows in the transposed image
+        visualization.at<Vec3b>(row, i) = Vec3b(0, 0, 255);  // Mark seam pixels in red
+    }
+
+    return visualization;
+}
+
 void ResizeImage(HWND hwnd, int n, int m)
 {
     if (img.empty()) 
@@ -691,89 +777,6 @@ void SaveImage(HWND hwnd)
             MessageBox(hwnd, L"Image saved!", L"Info", MB_OK);
         }
     }
-}
-
-
-////////////////////////////////////////////// GREEDY ALGORITHM IMPLEMENTATION ////////////////////////////////////////////
-std::vector<int> findVerticalSeamGreedy(const Mat& energyMap)
-{
-    int rows = energyMap.rows, cols = energyMap.cols;
-    std::vector<int> seam(rows);
-
-    // Start from the minimum energy pixel in the first row
-    seam[0] = std::min_element(energyMap.row(0).begin<uchar>(), energyMap.row(0).end<uchar>()) - energyMap.row(0).begin<uchar>();
-
-    // Select the minimum energy pixel in each subsequent row
-    for (int i = 1; i < rows; i++) {
-        int prevCol = seam[i - 1];
-        int left = max(0, prevCol - 1);
-        int right = min(cols - 1, prevCol + 1);
-
-        // Find the column with minimum energy in the range [left, right]
-        seam[i] = left + std::min_element(energyMap.ptr<uchar>(i) + left, energyMap.ptr<uchar>(i) + right + 1) - (energyMap.ptr<uchar>(i) + left);
-    }
-
-    return seam;
-}
-
-Mat removeVerticalSeamGreedy(const Mat& image, const std::vector<int>& seam)
-{
-    int rows = image.rows, cols = image.cols;
-    Mat output(rows, cols - 1, image.type());
-
-    for (int i = 0; i < rows; i++) {
-        int col = seam[i];
-        // Copy pixels to the left of the seam
-        image.row(i).colRange(0, col).copyTo(output.row(i).colRange(0, col));
-        // Copy pixels to the right of the seam
-        image.row(i).colRange(col + 1, cols).copyTo(output.row(i).colRange(col, cols - 1));
-    }
-
-    return output;
-}
-
-// Transpose Image for Horizontal Seam Support
-Mat transposeImage(const Mat& image)
-{
-    Mat transposed;
-    transpose(image, transposed);
-    return transposed;
-}
-
-std::vector<int> findHorizontalSeamGreedy(const Mat& energyMap)
-{
-    // Transpose the energy map
-    Mat transposedEnergyMap = transposeImage(energyMap);
-
-    // Use the vertical seam greedy algorithm
-    std::vector<int> verticalSeam = findVerticalSeamGreedy(transposedEnergyMap);
-
-    // Return the seam, now interpreted as a horizontal seam
-    return verticalSeam;
-}
-
-Mat removeHorizontalSeamGreedy(const Mat& image, const std::vector<int>& seam)
-{
-    // Transpose the image
-    Mat transposedImage = transposeImage(image);
-
-    // Remove the vertical seam on the transposed image
-    Mat resultTransposed = removeVerticalSeam(transposedImage, seam);
-
-    // Transpose back to get the horizontally resized image
-    return transposeImage(resultTransposed);
-}
-
-Mat visualizeHorizontalSeam(const Mat& image, const std::vector<int>& seam)
-{
-    Mat visualization = image.clone();
-
-    for (int i = 0; i < seam.size(); i++) {
-        int row = seam[i];  // Seam indicates rows in the transposed image
-        visualization.at<Vec3b>(row, i) = Vec3b(0, 0, 255);  // Mark seam pixels in red
-    }
-
-    return visualization;
 }
 
 /*
