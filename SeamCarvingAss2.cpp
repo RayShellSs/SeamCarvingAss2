@@ -7,6 +7,7 @@
 #include <opencv2/imgproc.hpp> // Required for Sobel and other image processing functions
 #include <iostream>
 #include <commdlg.h>
+#include <CommCtrl.h> // For trackbar
 #include <string>
 #include <vector>
 #include <fstream>
@@ -39,6 +40,9 @@ HWND hWidth, hHeight, hFilePath, hIntro;
 
 // Input Boxes
 HWND hEditVertSeams, hEditHorizSeams;
+
+// Slider
+HWND hSliderWidth, hSliderHeight;
 
 Mat img, resizedImg;
 HWND hWndImage;
@@ -152,6 +156,20 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
     hEditHorizSeams = CreateWindow(L"EDIT", L"", WS_BORDER | WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL,
         100, 80, 50, 20, hWnd, (HMENU)5, hInstance, NULL);
     
+    // Initialize the sliders in your window creation function (e.g., InitInstance)
+    hSliderWidth = CreateWindow(TRACKBAR_CLASS, NULL,
+        WS_CHILD | WS_VISIBLE | TBS_AUTOTICKS | TBS_ENABLESELRANGE,
+        200, 40, 300, 30, hWnd, (HMENU)6, hInstance, NULL);
+
+    hSliderHeight = CreateWindow(TRACKBAR_CLASS, NULL,
+        WS_CHILD | WS_VISIBLE | TBS_AUTOTICKS | TBS_ENABLESELRANGE,
+        200, 80, 300, 30, hWnd, (HMENU)7, hInstance, NULL);
+
+    SendMessage(hSliderWidth, TBM_SETRANGE, TRUE, MAKELPARAM(0, 500)); // Adjust range as needed
+	SendMessage(hSliderHeight, TBM_SETRANGE, TRUE, MAKELPARAM(0, 500));// Adjust range as needed
+    SendMessage(hSliderWidth, TBM_SETPOS, TRUE, 0);
+    SendMessage(hSliderHeight, TBM_SETPOS, TRUE, 0);
+
     // Dynamic Programming Radio Button
     hRadioDP = CreateWindow(
         L"BUTTON",
@@ -256,6 +274,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         case 1: // Load Image
         {
             OpenImage(hWnd);
+
+            // Set slider ranges
+            SendMessage(hEditVertSeams, TBM_SETRANGE, TRUE, MAKELPARAM(0, img.cols / 2)); // Half of the original width
+            SendMessage(hEditHorizSeams, TBM_SETRANGE, TRUE, MAKELPARAM(0, img.rows / 2)); // Half of the original height
             break;
         }
         case 2: // Resize Image
@@ -289,6 +311,21 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             break;
         default:
             return DefWindowProc(hWnd, message, wParam, lParam);
+        }
+    }
+    break;
+    case WM_HSCROLL: {
+        if ((HWND)lParam == hSliderWidth) {
+            int widthReduction = SendMessage(hSliderWidth, TBM_GETPOS, 0, 0);
+            wchar_t buffer[50];
+            swprintf(buffer, 50, L"%d", widthReduction);
+            SetWindowText(hEditVertSeams, buffer);  // Update label
+        }
+        if ((HWND)lParam == hSliderHeight) {
+            int heightReduction = SendMessage(hSliderHeight, TBM_GETPOS, 0, 0);
+            wchar_t buffer[50];
+            swprintf(buffer, 50, L"%d", heightReduction);
+            SetWindowText(hEditHorizSeams, buffer);  // Update label
         }
     }
     break;
