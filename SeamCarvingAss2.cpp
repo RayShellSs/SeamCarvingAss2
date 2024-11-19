@@ -629,7 +629,7 @@ std::vector<int> findVerticalSeamGreedy(const Mat& energyMap)
     std::vector<int> seam(rows);
 
     // Start from the minimum energy pixel in the first row
-    seam[0] = std::min_element(energyMap.row(0).begin<uchar>(), energyMap.row(0).end<uchar>()) - energyMap.row(0).begin<uchar>();
+    seam[0] = std::min_element(energyMap.ptr<uchar>(0), energyMap.ptr<uchar>(0) + cols) - energyMap.ptr<uchar>(0);
 
     // Select the minimum energy pixel in each subsequent row
     for (int i = 1; i < rows; i++) {
@@ -652,9 +652,13 @@ Mat removeVerticalSeamGreedy(const Mat& image, const std::vector<int>& seam)
     for (int i = 0; i < rows; i++) {
         int col = seam[i];
         // Copy pixels to the left of the seam
-        image.row(i).colRange(0, col).copyTo(output.row(i).colRange(0, col));
+        if (col > 0) {
+            image.row(i).colRange(0, col).copyTo(output.row(i).colRange(0, col));
+        }
         // Copy pixels to the right of the seam
-        image.row(i).colRange(col + 1, cols).copyTo(output.row(i).colRange(col, cols - 1));
+        if (col < cols - 1) {
+            image.row(i).colRange(col + 1, cols).copyTo(output.row(i).colRange(col, cols - 1));
+        }
     }
 
     return output;
