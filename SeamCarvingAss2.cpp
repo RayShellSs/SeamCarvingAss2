@@ -241,9 +241,15 @@ void OpenImage(HWND hwnd)
     }
 }
 
-Mat calculateEnergyMap(const Mat& img) {
+/*
+    - Convert image to grayscale with cvtColor because enery maps are typically computed based on intensity differences (easier to handle if all grey)
+    - Sobel filter to compute the gradients in X and Y directions to detect edges and intensity transitions
+    - computing magnitude of the gradients to give overall edge intensity at each pixel by combining both X and Y functions
+*/
+Mat calculateEnergyMap(const Mat& img) 
+{
     Mat gray, gradX, gradY, energyMap;
-    cvtColor(img, gray, COLOR_BGR2GRAY);
+    cvtColor(img, gray, COLOR_BGR2GRAY);        
     Sobel(gray, gradX, CV_64F, 1, 0);
     Sobel(gray, gradY, CV_64F, 0, 1);
     magnitude(gradX, gradY, energyMap);
