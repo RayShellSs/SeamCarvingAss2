@@ -281,10 +281,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 HDC hMemDC = CreateCompatibleDC(hdc);
                 SelectObject(hMemDC, hBitmap);
 
-                // Draw the image on the window
+                // Draw the image on the window at a new position
+                int xPos = 700;  // Adjust X-coordinate
+                int yPos = 0; // Adjust Y-coordinate
                 BITMAP bmp;
                 GetObject(hBitmap, sizeof(BITMAP), &bmp);
-                StretchBlt(hdc, 150, 10, bmp.bmWidth, bmp.bmHeight, hMemDC, 0, 0, bmp.bmWidth, bmp.bmHeight, SRCCOPY);
+                StretchBlt(hdc, xPos, yPos, bmp.bmWidth, bmp.bmHeight, hMemDC, 0, 0, bmp.bmWidth, bmp.bmHeight, SRCCOPY);
 
                 // Cleanup
                 DeleteDC(hMemDC);
@@ -295,7 +297,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         EndPaint(hWnd, &ps);
     }
     break;
-
     case WM_DESTROY:
         PostQuitMessage(0);
         break;
