@@ -152,11 +152,29 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
     hEditHorizSeams = CreateWindow(L"EDIT", L"", WS_BORDER | WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL,
         100, 80, 50, 20, hWnd, (HMENU)5, hInstance, NULL);
     
-    hRadioDP = CreateWindow(L"BUTTON", L"Dynamic Programming", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_RADIOBUTTON,
-        10, 120, 180, 30, hWnd, (HMENU)1001, hInstance, NULL);
+    // Dynamic Programming Radio Button
+    hRadioDP = CreateWindow(
+        L"BUTTON",
+        L"Dynamic Programming",
+        WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_RADIOBUTTON | WS_GROUP, // WS_GROUP for the first button
+        10, 120, 180, 30,
+        hWnd,
+        (HMENU)1001,
+        hInstance,
+        NULL
+    );
 
-    hRadioGreedy = CreateWindow(L"BUTTON", L"Greedy Algorithm", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_RADIOBUTTON,
-        200, 120, 150, 30, hWnd, (HMENU)1002, hInstance, NULL);
+    // Greedy Algorithm Radio Button
+    hRadioGreedy = CreateWindow(
+        L"BUTTON",
+        L"Greedy Algorithm",
+        WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_RADIOBUTTON, // No WS_GROUP here
+        200, 120, 150, 30,
+        hWnd,
+        (HMENU)1002,
+        hInstance,
+        NULL
+    );
 
     // Load Image
     hButtonLoad = CreateWindow(L"BUTTON", L"Load Image", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
@@ -217,20 +235,24 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         // Parse the menu selections:
         switch (wmId)
         {
-        case 1001: // DP RadioBtn
+        case 1001: // Dynamic Programming Radio Button
         {
             if (HIWORD(wParam) == BN_CLICKED) {
-                selectedAlgorithm = 0;  
+                selectedAlgorithm = 0;
+                SendMessage(hRadioDP, BM_SETCHECK, BST_CHECKED, 0);      // Check DP button
+                SendMessage(hRadioGreedy, BM_SETCHECK, BST_UNCHECKED, 0); // Uncheck Greedy button
             }
             break;
-        }            
-        case 1002: // Greedy RadioBtn
+        }
+        case 1002: // Greedy Algorithm Radio Button
         {
             if (HIWORD(wParam) == BN_CLICKED) {
-                selectedAlgorithm = 1;  
+                selectedAlgorithm = 1;
+                SendMessage(hRadioGreedy, BM_SETCHECK, BST_CHECKED, 0);  // Check Greedy button
+                SendMessage(hRadioDP, BM_SETCHECK, BST_UNCHECKED, 0);    // Uncheck DP button
             }
             break;
-        }           
+        }
         case 1: // Load Image
         {
             OpenImage(hWnd);
