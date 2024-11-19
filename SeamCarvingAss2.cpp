@@ -31,6 +31,9 @@ INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 // Buttons
 HWND hButtonLoad, hButtonResize, hButtonSave;
 
+// RadioButtons
+HWND hRadioDP, hRadioGreedy;
+
 // Labels
 HWND hWidth, hHeight, hFilePath, hIntro;
 
@@ -39,6 +42,8 @@ HWND hEditVertSeams, hEditHorizSeams;
 
 Mat img, resizedImg;
 HWND hWndImage;
+
+int selectedAlgorithm = 0;  // 0 for DP, 1 for greedy
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     _In_opt_ HINSTANCE hPrevInstance,
@@ -147,20 +152,28 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
     hEditHorizSeams = CreateWindow(L"EDIT", L"", WS_BORDER | WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL,
         100, 80, 50, 20, hWnd, (HMENU)5, hInstance, NULL);
     
+    hRadioDP = CreateWindow(L"BUTTON", L"Dynamic Programming", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_RADIOBUTTON,
+        10, 120, 180, 30, hWnd, (HMENU)1001, hInstance, NULL);
+
+    hRadioGreedy = CreateWindow(L"BUTTON", L"Greedy Algorithm", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_RADIOBUTTON,
+        200, 120, 150, 30, hWnd, (HMENU)1002, hInstance, NULL);
+
     // Load Image
     hButtonLoad = CreateWindow(L"BUTTON", L"Load Image", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
-        10, 120, 120, 30, hWnd, (HMENU)1, hInstance, NULL);
+        10, 160, 120, 30, hWnd, (HMENU)1, hInstance, NULL);
 
     // Create a static text control beside the "Load Image" button to display the file path
     hFilePath = CreateWindow(L"STATIC", L"File Path:", WS_CHILD | WS_VISIBLE | SS_LEFT,
-        150, 120, 500, 30, hWnd, NULL, hInstance, NULL);
+        150, 160, 500, 30, hWnd, NULL, hInstance, NULL);
 
     hButtonResize = CreateWindow(L"BUTTON", L"Resize Image", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
-        10, 160, 120, 30, hWnd, (HMENU)2, hInstance, NULL);
+        10, 200, 120, 30, hWnd, (HMENU)2, hInstance, NULL);
 
     hButtonSave = CreateWindow(L"BUTTON", L"Save Image", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
-        10, 200, 120, 30, hWnd, (HMENU)3, hInstance, NULL);
+        10, 240, 120, 30, hWnd, (HMENU)3, hInstance, NULL);
 
+    // Set the default selection for the radio button group
+    SendMessage(hRadioDP, BM_SETCHECK, (WPARAM)BST_CHECKED, 0);
 
     ShowWindow(hWnd, nCmdShow);
     UpdateWindow(hWnd);
@@ -190,6 +203,20 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         // Parse the menu selections:
         switch (wmId)
         {
+        case 1001: // DP RadioBtn
+        {
+            if (HIWORD(wParam) == BN_CLICKED) {
+                selectedAlgorithm = 0;  
+            }
+            break;
+        }            
+        case 1002: // Greedy RadioBtn
+        {
+            if (HIWORD(wParam) == BN_CLICKED) {
+                selectedAlgorithm = 1;  
+            }
+            break;
+        }           
         case 1: // Load Image
         {
             OpenImage(hWnd);
@@ -542,53 +569,61 @@ void ResizeImage(HWND hwnd, int n, int m)
     // Initialize resizedImg to img first
     resizedImg = img.clone();
 
-    // Vertical
-    if (n < 0)
+    // Dynamic Programming Algo
+    if (selectedAlgorithm == 0) 
     {
-        // Reduce Width 
-        for (int i = 0; i < -n; i++)
+        // Vertical
+        if (n < 0)
         {
-            Mat energyMap = calculateEnergyMap(resizedImg);
-            std::vector<int> verticalSeam = findVerticalSeam(energyMap);
-            resizedImg = removeVerticalSeam(resizedImg, verticalSeam);
+            // Reduce Width 
+            for (int i = 0; i < -n; i++)
+            {
+                Mat energyMap = calculateEnergyMap(resizedImg);
+                std::vector<int> verticalSeam = findVerticalSeam(energyMap);
+                resizedImg = removeVerticalSeam(resizedImg, verticalSeam);
+            }
         }
-    }
-    else if (n > 0)
-    {
-        // Insert vertical seams
-        for (int i = 0; i < n; i++)
+        else if (n > 0)
         {
-            Mat energyMap = calculateEnergyMap(resizedImg);
-            std::vector<int> verticalSeam = findVerticalSeam(energyMap);
-            resizedImg = insertVerticalSeam(resizedImg, verticalSeam);
+            // Insert vertical seams
+            for (int i = 0; i < n; i++)
+            {
+                Mat energyMap = calculateEnergyMap(resizedImg);
+                std::vector<int> verticalSeam = findVerticalSeam(energyMap);
+                resizedImg = insertVerticalSeam(resizedImg, verticalSeam);
+            }
         }
-    }
-    
 
-    // Horizontal
-    if (m < 0) 
-    {
-        for (int i = 0; i < -m; i++)
-        {
-            // After removing the vertical seam, calculate the energy map again for the updated image
-            Mat energyMap = calculateEnergyMap(resizedImg);
 
-            // Remove horizontal seams (reduce height)
-            std::vector<int> horizontalSeam = findHorizontalSeam(energyMap);
-            resizedImg = removeHorizontalSeam(resizedImg, horizontalSeam);
-        }
-    }
-    else if (m > 0)
-    {
-        // Insert horizontal seams (increase height)
-        for (int i = 0; i < m; i++)
+        // Horizontal
+        if (m < 0)
         {
-            Mat energyMap = calculateEnergyMap(resizedImg);
-            std::vector<int> horizontalSeam = findHorizontalSeam(energyMap);
-            resizedImg = insertHorizontalSeam(resizedImg, horizontalSeam);
+            for (int i = 0; i < -m; i++)
+            {
+                // After removing the vertical seam, calculate the energy map again for the updated image
+                Mat energyMap = calculateEnergyMap(resizedImg);
+
+                // Remove horizontal seams (reduce height)
+                std::vector<int> horizontalSeam = findHorizontalSeam(energyMap);
+                resizedImg = removeHorizontalSeam(resizedImg, horizontalSeam);
+            }
+        }
+        else if (m > 0)
+        {
+            // Insert horizontal seams (increase height)
+            for (int i = 0; i < m; i++)
+            {
+                Mat energyMap = calculateEnergyMap(resizedImg);
+                std::vector<int> horizontalSeam = findHorizontalSeam(energyMap);
+                resizedImg = insertHorizontalSeam(resizedImg, horizontalSeam);
+            }
         }
     }
-  
+    else if (selectedAlgorithm == 1) 
+    {
+        // Greedy Algo
+
+    }
 
     MessageBox(hwnd, L"Image resized!", L"Info", MB_OK);
 }
