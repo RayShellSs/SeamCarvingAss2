@@ -178,6 +178,20 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 //  WM_DESTROY  - post a quit message and return
 //
 //
+
+HBITMAP MatToHBITMAP(const Mat& mat)
+{
+    if (mat.empty())
+        return nullptr;
+
+    Mat temp;
+    cvtColor(mat, temp, COLOR_BGR2BGRA); // Convert OpenCV's BGR to BGRA for Windows
+
+    HBITMAP hBitmap = CreateBitmap(temp.cols, temp.rows, 1, 32, temp.data);
+    return hBitmap;
+}
+
+
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     int n{}, m{};
@@ -233,10 +247,32 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     {
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(hWnd, &ps);
-        // TODO: Add any drawing code that uses hdc here...
+
+        // Choose which image to display: resizedImg (if not empty) or the original img
+        Mat displayImg = resizedImg.empty() ? img : resizedImg;
+
+        if (!displayImg.empty()) {
+            // Convert Mat to HBITMAP
+            HBITMAP hBitmap = MatToHBITMAP(displayImg);
+            if (hBitmap) {
+                HDC hMemDC = CreateCompatibleDC(hdc);
+                SelectObject(hMemDC, hBitmap);
+
+                // Draw the image on the window
+                BITMAP bmp;
+                GetObject(hBitmap, sizeof(BITMAP), &bmp);
+                StretchBlt(hdc, 150, 10, bmp.bmWidth, bmp.bmHeight, hMemDC, 0, 0, bmp.bmWidth, bmp.bmHeight, SRCCOPY);
+
+                // Cleanup
+                DeleteDC(hMemDC);
+                DeleteObject(hBitmap);
+            }
+        }
+
         EndPaint(hWnd, &ps);
     }
     break;
+
     case WM_DESTROY:
         PostQuitMessage(0);
         break;
@@ -280,12 +316,25 @@ void OpenImage(HWND hwnd)
 
     if (GetOpenFileName(&ofn)) {
         img = imread(std::string(fileName, fileName + wcslen(fileName)));
-        if (!img.empty()) 
+        //if (!img.empty()) 
+        //{
+        //    // Update the file path text control with the selected file path
+        //    SetWindowText(hFilePath, ofn.lpstrFile);
+
+        //    MessageBox(hwnd, L"Image Loaded!", L"Info", MB_OK);
+        //}
+        //else {
+        //    MessageBox(hwnd, L"Failed to Load Image!", L"Error", MB_ICONERROR);
+        //}
+        if (!img.empty())
         {
             // Update the file path text control with the selected file path
             SetWindowText(hFilePath, ofn.lpstrFile);
 
             MessageBox(hwnd, L"Image Loaded!", L"Info", MB_OK);
+
+            // Trigger repaint to display the image
+            InvalidateRect(hwnd, nullptr, TRUE);
         }
         else {
             MessageBox(hwnd, L"Failed to Load Image!", L"Error", MB_ICONERROR);
@@ -591,6 +640,9 @@ void ResizeImage(HWND hwnd, int n, int m)
   
 
     MessageBox(hwnd, L"Image resized!", L"Info", MB_OK);
+
+    // Trigger repaint to display the resized image
+    InvalidateRect(hwnd, nullptr, TRUE);
 }
 
 void SaveImage(HWND hwnd)
@@ -661,3 +713,5 @@ Mat transposeImage(const Mat& image)
     transpose(image, transposed);
     return transposed;
 }
+
+
