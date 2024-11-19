@@ -35,7 +35,7 @@ HWND hButtonLoad, hButtonResize, hButtonSave;
 HWND hRadioDP, hRadioGreedy;
 
 // Labels
-HWND hWidth, hHeight, hFilePath, hIntro;
+HWND hWidth, hHeight, hFilePath;
 
 // Input Boxes
 HWND hEditVertSeams, hEditHorizSeams;
@@ -133,10 +133,6 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
     {
         return FALSE;
     }
-
-    // Introduction
-    hIntro = CreateWindow(L"STATIC", L"Hello! To Reduce Seams, please include a - sign infront of your values!", WS_CHILD | WS_VISIBLE,
-        10, 10, 480, 20, hWnd, NULL, hInstance, NULL);
 
     // Width
     hWidth = CreateWindow(L"STATIC", L"Width (px):", WS_CHILD | WS_VISIBLE,
@@ -341,18 +337,10 @@ void OpenImage(HWND hwnd)
     ofn.nMaxFile = MAX_PATH;
     ofn.Flags = OFN_FILEMUSTEXIST;
 
-    if (GetOpenFileName(&ofn)) {
+    if (GetOpenFileName(&ofn)) 
+    {
         img = imread(std::string(fileName, fileName + wcslen(fileName)));
-        //if (!img.empty()) 
-        //{
-        //    // Update the file path text control with the selected file path
-        //    SetWindowText(hFilePath, ofn.lpstrFile);
 
-        //    MessageBox(hwnd, L"Image Loaded!", L"Info", MB_OK);
-        //}
-        //else {
-        //    MessageBox(hwnd, L"Failed to Load Image!", L"Error", MB_ICONERROR);
-        //}
         if (!img.empty())
         {
             // Update the file path text control with the selected file path
@@ -621,52 +609,23 @@ void ResizeImage(HWND hwnd, int n, int m)
     // Dynamic Programming Algo
     if (selectedAlgorithm == 0) 
     {
-        // Vertical
-        if (n < 0)
+        // Reduce Width 
+        for (int i = 0; i < n; i++)
         {
-            // Reduce Width 
-            for (int i = 0; i < -n; i++)
-            {
-                Mat energyMap = calculateEnergyMap(resizedImg);
-                std::vector<int> verticalSeam = findVerticalSeam(energyMap);
-                resizedImg = removeVerticalSeam(resizedImg, verticalSeam);
-            }
-        }
-        else if (n > 0)
-        {
-            // Insert vertical seams
-            for (int i = 0; i < n; i++)
-            {
-                Mat energyMap = calculateEnergyMap(resizedImg);
-                std::vector<int> verticalSeam = findVerticalSeam(energyMap);
-                resizedImg = insertVerticalSeam(resizedImg, verticalSeam);
-            }
+            Mat energyMap = calculateEnergyMap(resizedImg);
+            std::vector<int> verticalSeam = findVerticalSeam(energyMap);
+            resizedImg = removeVerticalSeam(resizedImg, verticalSeam);
         }
 
-
-        // Horizontal
-        if (m < 0)
+        for (int i = 0; i < m; i++)
         {
-            for (int i = 0; i < -m; i++)
-            {
-                // After removing the vertical seam, calculate the energy map again for the updated image
-                Mat energyMap = calculateEnergyMap(resizedImg);
+            // After removing the vertical seam, calculate the energy map again for the updated image
+            Mat energyMap = calculateEnergyMap(resizedImg);
 
-                // Remove horizontal seams (reduce height)
-                std::vector<int> horizontalSeam = findHorizontalSeam(energyMap);
-                resizedImg = removeHorizontalSeam(resizedImg, horizontalSeam);
-            }
-        }
-        else if (m > 0)
-        {
-            // Insert horizontal seams (increase height)
-            for (int i = 0; i < m; i++)
-            {
-                Mat energyMap = calculateEnergyMap(resizedImg);
-                std::vector<int> horizontalSeam = findHorizontalSeam(energyMap);
-                resizedImg = insertHorizontalSeam(resizedImg, horizontalSeam);
-            }
-        }
+            // Remove horizontal seams (reduce height)
+            std::vector<int> horizontalSeam = findHorizontalSeam(energyMap);
+            resizedImg = removeHorizontalSeam(resizedImg, horizontalSeam);
+        }       
     }
     else if (selectedAlgorithm == 1) 
     {
