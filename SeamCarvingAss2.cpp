@@ -136,7 +136,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 
     // Introduction
     hIntro = CreateWindow(L"STATIC", L"Hello! Let's Reduce some Seams!", WS_CHILD | WS_VISIBLE,
-        10, 10, 480, 20, hWnd, NULL, hInstance, NULL);
+        10, 10, 280, 20, hWnd, NULL, hInstance, NULL);
 
     // Width
     hWidth = CreateWindow(L"STATIC", L"Width (px):", WS_CHILD | WS_VISIBLE,
