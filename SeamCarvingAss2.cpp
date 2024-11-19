@@ -732,10 +732,11 @@ void ResizeImage(HWND hwnd, int n, int m)
             Mat energyMap = calculateEnergyMap(resizedImg);
             std::vector<int> verticalSeam = findVerticalSeam(energyMap);
 
+            
             Mat seamVisual = visualizeVerticalSeam(resizedImg, verticalSeam);
             imshow("Seam Visualization", seamVisual);
-            waitKey(500);  // Wait for 500 ms to view each seam
-
+            waitKey(100);  // Wait for 500 ms to view each seam
+            
             resizedImg = removeVerticalSeam(resizedImg, verticalSeam);
         }
 
@@ -751,7 +752,7 @@ void ResizeImage(HWND hwnd, int n, int m)
             // Visualize seam
             Mat seamVisual = visualizeHorizontalSeam(resizedImg, horizontalSeam);
             imshow("Seam Visualization", seamVisual);
-            waitKey(500);  // Wait for 500 ms to view each seam
+            waitKey(100);  // Wait for 500 ms to view each seam
 
             resizedImg = removeHorizontalSeam(resizedImg, horizontalSeam);
         }       
@@ -767,7 +768,7 @@ void ResizeImage(HWND hwnd, int n, int m)
 
             Mat seamVisual = visualizeVerticalSeam(resizedImg, verticalSeam);
             imshow("Seam Visualization", seamVisual);
-            waitKey(500);  // Wait for 500 ms to view each seam
+            waitKey(100);  // Wait for 500 ms to view each seam
 
             resizedImg = removeVerticalSeamGreedy(resizedImg, verticalSeam);
         }
@@ -783,7 +784,7 @@ void ResizeImage(HWND hwnd, int n, int m)
             // Visualize seam
             Mat seamVisual = visualizeHorizontalSeam(resizedImg, horizontalSeam);
             imshow("Seam Visualization", seamVisual);
-            waitKey(500);  // Wait for 500 ms to view each seam
+            waitKey(100);  // Wait for 500 ms to view each seam
 
             resizedImg = removeHorizontalSeamGreedy(resizedImg, horizontalSeam);
         }
