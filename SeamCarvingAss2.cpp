@@ -630,7 +630,23 @@ void ResizeImage(HWND hwnd, int n, int m)
     else if (selectedAlgorithm == 1) 
     {
         // Greedy Algo
+ 
+        for (int i = 0; i < n; i++)
+        {
+            Mat energyMap = calculateEnergyMap(resizedImg);
+            std::vector<int> verticalSeam = findVerticalSeamGreedy(energyMap);
+            resizedImg = removeVerticalSeamGreedy(resizedImg, verticalSeam);
+        }
 
+        for (int i = 0; i < m; i++)
+        {
+            // After removing the vertical seam, calculate the energy map again for the updated image
+            Mat energyMap = calculateEnergyMap(resizedImg);
+
+            // Remove horizontal seams (reduce height)
+            std::vector<int> horizontalSeam = findHorizontalSeamGreedy(energyMap);
+            resizedImg = removeHorizontalSeamGreedy(resizedImg, horizontalSeam);
+        }
     }
 
     MessageBox(hwnd, L"Image resized!", L"Info", MB_OK);
