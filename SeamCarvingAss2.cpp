@@ -705,8 +705,23 @@ std::vector<int> findVerticalSeamGreedy(const Mat& energyMap)
     return seam;
 }
 
-// Transpose Image for Horizontal Seam Support
+Mat removeVerticalSeamGreedy(const Mat& image, const std::vector<int>& seam)
+{
+    int rows = image.rows, cols = image.cols;
+    Mat output(rows, cols - 1, image.type());
 
+    for (int i = 0; i < rows; i++) {
+        int col = seam[i];
+        // Copy pixels to the left of the seam
+        image.row(i).colRange(0, col).copyTo(output.row(i).colRange(0, col));
+        // Copy pixels to the right of the seam
+        image.row(i).colRange(col + 1, cols).copyTo(output.row(i).colRange(col, cols - 1));
+    }
+
+    return output;
+}
+
+// Transpose Image for Horizontal Seam Support
 Mat transposeImage(const Mat& image)
 {
     Mat transposed;
@@ -714,4 +729,79 @@ Mat transposeImage(const Mat& image)
     return transposed;
 }
 
+std::vector<int> findHorizontalSeamGreedy(const Mat& energyMap)
+{
+    // Transpose the energy map
+    Mat transposedEnergyMap = transposeImage(energyMap);
 
+    // Use the vertical seam greedy algorithm
+    std::vector<int> verticalSeam = findVerticalSeamGreedy(transposedEnergyMap);
+
+    // Return the seam, now interpreted as a horizontal seam
+    return verticalSeam;
+}
+
+Mat removeHorizontalSeamGreedy(const Mat& image, const std::vector<int>& seam)
+{
+    // Transpose the image
+    Mat transposedImage = transposeImage(image);
+
+    // Remove the vertical seam on the transposed image
+    Mat resultTransposed = removeVerticalSeam(transposedImage, seam);
+
+    // Transpose back to get the horizontally resized image
+    return transposeImage(resultTransposed);
+}
+
+Mat visualizeHorizontalSeam(const Mat& image, const std::vector<int>& seam)
+{
+    Mat visualization = image.clone();
+
+    for (int i = 0; i < seam.size(); i++) {
+        int row = seam[i];  // Seam indicates rows in the transposed image
+        visualization.at<Vec3b>(row, i) = Vec3b(0, 0, 255);  // Mark seam pixels in red
+    }
+
+    return visualization;
+}
+
+/*
+
+Mat insertVerticalSeamGreedy(const Mat& image, const std::vector<int>& seam)
+{
+    int rows = image.rows, cols = image.cols;
+    Mat output(rows, cols + 1, image.type());
+
+    for (int i = 0; i < rows; i++) {
+        int col = seam[i];
+
+        // Copy pixels up to the seam
+        image.row(i).colRange(0, col + 1).copyTo(output.row(i).colRange(0, col + 1));
+
+        // Duplicate the seam pixel
+        Vec3b leftPixel = image.at<Vec3b>(i, col);
+        Vec3b rightPixel = (col + 1 < cols) ? image.at<Vec3b>(i, col + 1) : leftPixel;
+        Vec3b newPixel = (leftPixel + rightPixel) / 2;
+
+        output.at<Vec3b>(i, col + 1) = newPixel;
+
+        // Copy pixels after the seam
+        image.row(i).colRange(col + 1, cols).copyTo(output.row(i).colRange(col + 2, cols + 1));
+    }
+
+    return output;
+}
+
+Mat insertHorizontalSeam(const Mat& image, const std::vector<int>& seam)
+{
+    // Transpose the image
+    Mat transposedImage = transposeImage(image);
+
+    // Insert a vertical seam in the transposed image
+    Mat resultTransposed = insertVerticalSeam(transposedImage, seam);
+
+    // Transpose back to get the horizontally resized image
+    return transposeImage(resultTransposed);
+}
+
+*/
