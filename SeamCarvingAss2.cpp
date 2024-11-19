@@ -11,6 +11,7 @@
 #include <vector>
 #include <fstream>
 #include <limits> // For numeric_limits
+#include <Windows.h>
 
 using namespace cv;
 
@@ -27,7 +28,15 @@ BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 
+// Buttons
 HWND hButtonLoad, hButtonResize, hButtonSave;
+
+// Labels
+HWND hWidth, hHeight;
+
+// Input Boxes
+HWND hEditVertSeams, hEditHorizSeams;
+
 Mat img, resizedImg;
 HWND hWndImage;
 
@@ -120,13 +129,28 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
         return FALSE;
     }
 
-    // Create buttons
+    // Width
+    hWidth = CreateWindow(L"STATIC", L"Width (px):", WS_CHILD | WS_VISIBLE,
+        10, 10, 80, 20, hWnd, NULL, hInstance, NULL);
+
+    hEditVertSeams = CreateWindow(L"EDIT", L"", WS_BORDER | WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL,
+        100, 10, 50, 20, hWnd, (HMENU)4, hInstance, NULL);
+
+    // Height
+    hHeight = CreateWindow(L"STATIC", L"Height (px):", WS_CHILD | WS_VISIBLE,
+        10, 50, 80, 20, hWnd, NULL, hInstance, NULL);
+
+    hEditHorizSeams = CreateWindow(L"EDIT", L"", WS_BORDER | WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL,
+        100, 50, 50, 20, hWnd, (HMENU)5, hInstance, NULL);
+    
+    // Buttons
     hButtonLoad = CreateWindow(L"BUTTON", L"Load Image", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
-        10, 10, 120, 30, hWnd, (HMENU)1, hInstance, NULL);
+        10, 90, 120, 30, hWnd, (HMENU)1, hInstance, NULL);
     hButtonResize = CreateWindow(L"BUTTON", L"Resize Image", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
-        10, 50, 120, 30, hWnd, (HMENU)2, hInstance, NULL);
+        10, 130, 120, 30, hWnd, (HMENU)2, hInstance, NULL);
     hButtonSave = CreateWindow(L"BUTTON", L"Save Image", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
-        10, 90, 120, 30, hWnd, (HMENU)3, hInstance, NULL);
+        10, 170, 120, 30, hWnd, (HMENU)3, hInstance, NULL);
+
 
     ShowWindow(hWnd, nCmdShow);
     UpdateWindow(hWnd);
@@ -146,6 +170,8 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 //
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+    int n{}, m{};
+
     switch (message)
     {
     case WM_COMMAND:
@@ -161,7 +187,19 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         }
         case 2: // Resize Image
         {
-            ResizeImage(hWnd);
+            // Retrieve vertical and horizontal seams input before calling ResizeImage
+            wchar_t buffer[256];
+
+            // Get vertical seams input (n)
+            GetWindowText(hEditVertSeams, buffer, sizeof(buffer) / sizeof(wchar_t));
+            n = _wtoi(buffer);  // Convert wide string to integer (use _wtoi for wide char to int)
+
+            // Get horizontal seams input (m)
+            GetWindowText(hEditHorizSeams, buffer, sizeof(buffer) / sizeof(wchar_t));
+            m = _wtoi(buffer);  // Convert wide string to integer (use _wtoi for wide char to int)
+
+            // Call ResizeImage with the parsed values for n and m
+            ResizeImage(hWnd, n, m);
             break;
         }
         case 3: // Save Image
@@ -359,16 +397,83 @@ Mat removeVerticalSeam(const Mat& img, const std::vector<int>& seam)
     return output;
 }
 
-void ResizeImage(HWND hwnd) {
-    if (img.empty()) {
+/*
+    - Using Vertical Seam, transpose the image so that the rows become columns
+*/
+std::vector<int> findHorizontalSeam(const Mat& energyMap)
+{
+    // Transpose the energy map to make the rows become columns
+    Mat transposedEnergyMap;
+    transpose(energyMap, transposedEnergyMap);
+
+    // Use the vertical seam function on the transposed image
+    std::vector<int> verticalSeam = findVerticalSeam(transposedEnergyMap);
+
+    // The vertical seam in the transposed image corresponds to the horizontal seam in the original image
+    return verticalSeam;
+}
+
+/*
+     Iterate Through Each Column:
+    ----------------------------------
+    For each column, skip the row corresponding to the seam index.
+
+    Copy Remaining Pixels:
+    ----------------------------------
+    Create a new image with one less row by copying all pixels except the ones in the seam.
+*/
+Mat removeHorizontalSeam(const Mat& img, const std::vector<int>& seam)
+{
+    int rows = img.rows;
+    int cols = img.cols;
+
+    // Create a new image with one less row
+    Mat output(rows - 1, cols, img.type());
+
+    for (int j = 0; j < cols; j++) {
+        int k = 0; // Index for the output image's row
+        for (int i = 0; i < rows; i++) {
+            if (i != seam[j]) {
+                output.at<Vec3b>(k++, j) = img.at<Vec3b>(i, j);
+            }
+        }
+    }
+
+    return output;
+}
+
+
+void ResizeImage(HWND hwnd, int n, int m)
+{
+    if (img.empty()) 
+    {
         MessageBox(hwnd, L"No image loaded!", L"Error", MB_ICONERROR);
         return;
     }
 
-    // Seam carving logic
-    Mat energyMap = calculateEnergyMap(img);
-    std::vector<int> seam = findVerticalSeam(energyMap);
-    resizedImg = removeVerticalSeam(img, seam);
+    // Initialize resizedImg to img first
+    resizedImg = img.clone();
+
+    // Vertical
+    for (int i = 0; i < n; i++) 
+    {
+        Mat energyMap = calculateEnergyMap(resizedImg);
+
+        // Remove vertical seams (reduce width)
+        std::vector<int> verticalSeam = findVerticalSeam(energyMap);
+        resizedImg = removeVerticalSeam(resizedImg, verticalSeam);
+    }
+
+    // Horizontal
+    for (int i = 0; i < m; i++)
+    {
+        // After removing the vertical seam, calculate the energy map again for the updated image
+        Mat energyMap = calculateEnergyMap(resizedImg);
+
+        // Remove horizontal seams (reduce height)
+        std::vector<int> horizontalSeam = findHorizontalSeam(energyMap);
+        resizedImg = removeHorizontalSeam(resizedImg, horizontalSeam);
+    } 
 
     MessageBox(hwnd, L"Image resized!", L"Info", MB_OK);
 }
