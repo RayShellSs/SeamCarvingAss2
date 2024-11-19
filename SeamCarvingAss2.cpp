@@ -32,7 +32,7 @@ INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 HWND hButtonLoad, hButtonResize, hButtonSave;
 
 // Labels
-HWND hWidth, hHeight;
+HWND hWidth, hHeight, hFilePath, hIntro;
 
 // Input Boxes
 HWND hEditVertSeams, hEditHorizSeams;
@@ -129,27 +129,37 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
         return FALSE;
     }
 
+    // Introduction
+    hIntro = CreateWindow(L"STATIC", L"Hello! To Reduce Seams, please include a - sign infront of your values!", WS_CHILD | WS_VISIBLE,
+        10, 10, 480, 20, hWnd, NULL, hInstance, NULL);
+
     // Width
     hWidth = CreateWindow(L"STATIC", L"Width (px):", WS_CHILD | WS_VISIBLE,
-        10, 10, 80, 20, hWnd, NULL, hInstance, NULL);
+        10, 40, 80, 20, hWnd, NULL, hInstance, NULL);
 
     hEditVertSeams = CreateWindow(L"EDIT", L"", WS_BORDER | WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL,
-        100, 10, 50, 20, hWnd, (HMENU)4, hInstance, NULL);
+        100, 40, 50, 20, hWnd, (HMENU)4, hInstance, NULL);
 
     // Height
     hHeight = CreateWindow(L"STATIC", L"Height (px):", WS_CHILD | WS_VISIBLE,
-        10, 50, 80, 20, hWnd, NULL, hInstance, NULL);
+        10, 80, 80, 20, hWnd, NULL, hInstance, NULL);
 
     hEditHorizSeams = CreateWindow(L"EDIT", L"", WS_BORDER | WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL,
-        100, 50, 50, 20, hWnd, (HMENU)5, hInstance, NULL);
+        100, 80, 50, 20, hWnd, (HMENU)5, hInstance, NULL);
     
-    // Buttons
+    // Load Image
     hButtonLoad = CreateWindow(L"BUTTON", L"Load Image", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
-        10, 90, 120, 30, hWnd, (HMENU)1, hInstance, NULL);
+        10, 120, 120, 30, hWnd, (HMENU)1, hInstance, NULL);
+
+    // Create a static text control beside the "Load Image" button to display the file path
+    hFilePath = CreateWindow(L"STATIC", L"File Path:", WS_CHILD | WS_VISIBLE | SS_LEFT,
+        150, 120, 500, 30, hWnd, NULL, hInstance, NULL);
+
     hButtonResize = CreateWindow(L"BUTTON", L"Resize Image", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
-        10, 130, 120, 30, hWnd, (HMENU)2, hInstance, NULL);
+        10, 160, 120, 30, hWnd, (HMENU)2, hInstance, NULL);
+
     hButtonSave = CreateWindow(L"BUTTON", L"Save Image", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
-        10, 170, 120, 30, hWnd, (HMENU)3, hInstance, NULL);
+        10, 200, 120, 30, hWnd, (HMENU)3, hInstance, NULL);
 
 
     ShowWindow(hWnd, nCmdShow);
@@ -270,7 +280,11 @@ void OpenImage(HWND hwnd)
 
     if (GetOpenFileName(&ofn)) {
         img = imread(std::string(fileName, fileName + wcslen(fileName)));
-        if (!img.empty()) {
+        if (!img.empty()) 
+        {
+            // Update the file path text control with the selected file path
+            SetWindowText(hFilePath, ofn.lpstrFile);
+
             MessageBox(hwnd, L"Image Loaded!", L"Info", MB_OK);
         }
         else {
@@ -398,6 +412,42 @@ Mat removeVerticalSeam(const Mat& img, const std::vector<int>& seam)
 }
 
 /*
+    - For each row in img, shift pixels to right starting from seam position
+    - Insert the new pixel in the seam's place
+*/
+Mat insertVerticalSeam(const Mat& img, const std::vector<int>& seam)
+{
+    int rows = img.rows;
+    int cols = img.cols;
+
+    // Create a new image with one more column
+    Mat output(rows, cols + 1, img.type());
+
+    // For each row, insert the seam
+    for (int i = 0; i < rows; i++) 
+    {
+        int seamPos = seam[i];
+        for (int j = 0; j < cols; j++) 
+        {
+            if (j < seamPos) {
+                // Copy the pixel from the original image to the new image (before the seam)
+                output.at<Vec3b>(i, j) = img.at<Vec3b>(i, j);
+            }
+            else if (j == seamPos) {
+                // Insert a new pixel (take the average or some other method to blend)
+                output.at<Vec3b>(i, j) = img.at<Vec3b>(i, j); // You can choose to take an average, or simply copy one of the adjacent pixels
+            }
+            else {
+                // Shift the pixels to the right (after the seam)
+                output.at<Vec3b>(i, j) = img.at<Vec3b>(i, j - 1);
+            }
+        }
+    }
+
+    return output;
+}
+
+/*
     - Using Vertical Seam, transpose the image so that the rows become columns
 */
 std::vector<int> findHorizontalSeam(const Mat& energyMap)
@@ -442,6 +492,44 @@ Mat removeHorizontalSeam(const Mat& img, const std::vector<int>& seam)
     return output;
 }
 
+/*
+    - For each col in img, shift pixels downwards starting from seam position
+    - Insert new pixel in seam's place
+*/
+Mat insertHorizontalSeam(const Mat& img, const std::vector<int>& seam)
+{
+    int rows = img.rows;
+    int cols = img.cols;
+
+    // Create a new image with one more row
+    Mat output(rows + 1, cols, img.type());
+
+    // For each column, insert the seam
+    for (int j = 0; j < cols; j++) 
+    {
+        int seamPos = seam[j];
+        for (int i = 0; i < rows; i++) 
+        {
+            if (i < seamPos) 
+            {
+                // Copy the pixel from the original image to the new image (before the seam)
+                output.at<Vec3b>(i, j) = img.at<Vec3b>(i, j);
+            }
+            else if (i == seamPos) 
+            {
+                // Insert a new pixel 
+                output.at<Vec3b>(i, j) = img.at<Vec3b>(i, j); 
+            }
+            else 
+            {
+                // Shift the pixels downward (after the seam)
+                output.at<Vec3b>(i, j) = img.at<Vec3b>(i - 1, j);
+            }
+        }
+    }
+
+    return output;
+}
 
 void ResizeImage(HWND hwnd, int n, int m)
 {
@@ -455,25 +543,52 @@ void ResizeImage(HWND hwnd, int n, int m)
     resizedImg = img.clone();
 
     // Vertical
-    for (int i = 0; i < n; i++) 
+    if (n < 0)
     {
-        Mat energyMap = calculateEnergyMap(resizedImg);
-
-        // Remove vertical seams (reduce width)
-        std::vector<int> verticalSeam = findVerticalSeam(energyMap);
-        resizedImg = removeVerticalSeam(resizedImg, verticalSeam);
+        // Reduce Width 
+        for (int i = 0; i < -n; i++)
+        {
+            Mat energyMap = calculateEnergyMap(resizedImg);
+            std::vector<int> verticalSeam = findVerticalSeam(energyMap);
+            resizedImg = removeVerticalSeam(resizedImg, verticalSeam);
+        }
     }
+    else if (n > 0)
+    {
+        // Insert vertical seams
+        for (int i = 0; i < n; i++)
+        {
+            Mat energyMap = calculateEnergyMap(resizedImg);
+            std::vector<int> verticalSeam = findVerticalSeam(energyMap);
+            resizedImg = insertVerticalSeam(resizedImg, verticalSeam);
+        }
+    }
+    
 
     // Horizontal
-    for (int i = 0; i < m; i++)
+    if (m < 0) 
     {
-        // After removing the vertical seam, calculate the energy map again for the updated image
-        Mat energyMap = calculateEnergyMap(resizedImg);
+        for (int i = 0; i < -m; i++)
+        {
+            // After removing the vertical seam, calculate the energy map again for the updated image
+            Mat energyMap = calculateEnergyMap(resizedImg);
 
-        // Remove horizontal seams (reduce height)
-        std::vector<int> horizontalSeam = findHorizontalSeam(energyMap);
-        resizedImg = removeHorizontalSeam(resizedImg, horizontalSeam);
-    } 
+            // Remove horizontal seams (reduce height)
+            std::vector<int> horizontalSeam = findHorizontalSeam(energyMap);
+            resizedImg = removeHorizontalSeam(resizedImg, horizontalSeam);
+        }
+    }
+    else if (m > 0)
+    {
+        // Insert horizontal seams (increase height)
+        for (int i = 0; i < m; i++)
+        {
+            Mat energyMap = calculateEnergyMap(resizedImg);
+            std::vector<int> horizontalSeam = findHorizontalSeam(energyMap);
+            resizedImg = insertHorizontalSeam(resizedImg, horizontalSeam);
+        }
+    }
+  
 
     MessageBox(hwnd, L"Image resized!", L"Info", MB_OK);
 }
