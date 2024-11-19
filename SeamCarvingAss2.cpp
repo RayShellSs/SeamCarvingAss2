@@ -514,3 +514,35 @@ void SaveImage(HWND hwnd)
         }
     }
 }
+
+
+////////////////////////////////////////////// GREEDY ALGORITHM IMPLEMENTATION ////////////////////////////////////////////
+std::vector<int> findVerticalSeamGreedy(const Mat& energyMap)
+{
+    int rows = energyMap.rows, cols = energyMap.cols;
+    std::vector<int> seam(rows);
+
+    // Start from the minimum energy pixel in the first row
+    seam[0] = std::min_element(energyMap.row(0).begin<uchar>(), energyMap.row(0).end<uchar>()) - energyMap.row(0).begin<uchar>();
+
+    // Select the minimum energy pixel in each subsequent row
+    for (int i = 1; i < rows; i++) {
+        int prevCol = seam[i - 1];
+        int left = max(0, prevCol - 1);
+        int right = min(cols - 1, prevCol + 1);
+
+        // Find the column with minimum energy in the range [left, right]
+        seam[i] = left + std::min_element(energyMap.ptr<uchar>(i) + left, energyMap.ptr<uchar>(i) + right + 1) - (energyMap.ptr<uchar>(i) + left);
+    }
+
+    return seam;
+}
+
+// Transpose Image for Horizontal Seam Support
+
+Mat transposeImage(const Mat& image)
+{
+    Mat transposed;
+    transpose(image, transposed);
+    return transposed;
+}
